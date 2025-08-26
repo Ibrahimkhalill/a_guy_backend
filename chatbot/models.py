@@ -12,6 +12,8 @@ class ChatRoom(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     name = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    fsm_state_json = models.JSONField(default=dict, blank=True, null=True)  # <-- add this field
+
 
     def __str__(self):
         return self.name or f"Room {self.uuid}"
