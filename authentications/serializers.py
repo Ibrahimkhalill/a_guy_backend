@@ -5,8 +5,6 @@ from payment.models import Subscription
 
 User = get_user_model()
 
-from rest_framework import serializers
-
 
 class CustomUserSerializer(serializers.ModelSerializer):
     user_profile = serializers.SerializerMethodField()
@@ -15,9 +13,10 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email_address', 'role', 'is_verified', 'user_profile', 'is_subscribed']
+        fields = ['id', 'email_address', 'role',
+                  'is_verified', 'user_profile', 'is_subscribed']
         read_only_fields = ['id', 'is_active', 'is_staff', 'is_superuser']
- 
+
     def get_is_subscribed(self, obj):
         try:
             subscription = Subscription.objects.get(user=obj)
@@ -32,7 +31,6 @@ class CustomUserSerializer(serializers.ModelSerializer):
         except UserProfile.DoesNotExist:
             return None
 
-    
 
 class CustomUserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
@@ -59,22 +57,25 @@ class CustomUserCreateSerializer(serializers.ModelSerializer):
         if data.get('email') and User.objects.filter(email=data['email'], is_verified=True).exists():
             errors['email'] = ['This email already exists']
         if data.get('role') and data['role'] not in dict(CustomUser.ROLES).keys():
-            errors['role'] = [f"Invalid role. Must be one of: {', '.join(dict(CustomUser.ROLES).keys())}"]
+            errors['role'] = [
+                f"Invalid role. Must be one of: {', '.join(dict(CustomUser.ROLES).keys())}"]
         if errors:
             raise serializers.ValidationError(errors)
         return data
 
     def create(self, validated_data):
         name = validated_data.pop('name')
-      
-        User.objects.filter(email=validated_data['email'], is_verified=False).delete()
+
+        User.objects.filter(
+            email=validated_data['email'], is_verified=False).delete()
         user = User.objects.create_user(
             email=validated_data['email'],
             password=validated_data['password'],
             role=validated_data.get('role', 'user')
         )
-        UserProfile.objects.create(user=user, name=name ,)
+        UserProfile.objects.create(user=user, name=name,)
         return user
+
 
 class OTPSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
@@ -95,14 +96,14 @@ class OTPSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
         return data
 
+
 class UserProfileSerializer(serializers.ModelSerializer):
-    
+
     class Meta:
         model = UserProfile
-        fields = ['id', 'user', 'name', 'profile_picture','joined_date']
+        fields = ['id', 'user', 'name', 'profile_picture', 'joined_date']
         read_only_fields = ['id', 'user', 'joined_date']
 
-    
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -125,6 +126,7 @@ class LoginSerializer(serializers.Serializer):
             errors['credentials'] = ['Invalid email or password']
             raise serializers.ValidationError(errors)
         if not user.is_active:
-            errors['credentials'] = ['Account not verified. Please verify your email with the OTP sent']
+            errors['credentials'] = [
+                'Account not verified. Please verify your email with the OTP sent']
             raise serializers.ValidationError(errors)
         return user

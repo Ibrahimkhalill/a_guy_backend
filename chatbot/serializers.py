@@ -36,10 +36,13 @@ class MessageSerializer(serializers.ModelSerializer):
 
 class ChatRoomSerializer(serializers.ModelSerializer):
     messages = MessageSerializer(many=True, read_only=True)
+    user = CustomUserSerializer(read_only=True)
 
     class Meta:
         model = ChatRoom
-        fields = ["id", "uuid", "name", "created_at", "messages"]
+        fields = ["id", "user", "uuid", "name", "created_at", "messages"]
 
-
-
+    def create(self, validated_data):
+        request = self.context.get("request")
+        chatroom = ChatRoom.objects.create(user=request.user, **validated_data)
+        return chatroom

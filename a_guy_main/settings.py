@@ -10,14 +10,14 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from datetime import timedelta
+from dotenv import load_dotenv
 from pathlib import Path
 import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-import os
 
-from dotenv import load_dotenv
 load_dotenv()
 
 # Quick-start development settings - unsuitable for production
@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'daphne',
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -50,14 +51,13 @@ INSTALLED_APPS = [
     'payment',
     'apscheduler',
     'corsheaders',
-    'chatbot'
-   
-   
-   
+    'chatbot',
+    'channels',
+    'headline'
 ]
 
 # CORS_ALLOWED_ORIGINS = [
-#     "http://192.168.10.12:5173",  # Frontend IP
+#     "http://10.10.12.9:8001",  # Frontend IP
 # ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -82,7 +82,6 @@ REST_FRAMEWORK = {
     ),
 }
 
-from datetime import timedelta
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
@@ -108,7 +107,32 @@ TEMPLATES = [
     },
 ]
 
+JAZZMIN_SETTINGS = {
+    # title of the window (Will default to current_admin_site.site_title if absent or None)
+    "site_title": "A Guy Admin",
+
+    # Title on the login screen (19 chars max) (defaults to current_admin_site.site_header if absent or None)
+    "site_header": "A Guy",
+
+    # Title on the brand (19 chars max) (defaults to current_admin_site.site_header if absent or None)
+    "site_brand": "A Guy",
+
+    # Welcome text on the login screen
+    "welcome_sign": "Welcome to the A Guy",
+
+
+}
+
 WSGI_APPLICATION = 'a_guy_main.wsgi.application'
+ASGI_APPLICATION = "a_guy_main.asgi.application"
+
+
+CHANNEL_LAYERS = {
+    'default': {
+        # Use in-memory instead of Redis
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 
 # Database
@@ -160,12 +184,12 @@ STATICFILES_DIRS = [
 ]
 
 MEDIA_URL = '/media/'  # URL to access media files
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # Directory to store uploaded files
+# Directory to store uploaded files
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -175,4 +199,3 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'hijabpoint374@gmail.com'
 EMAIL_HOST_PASSWORD = 'sbog hrdj icpg zodj'  # Ensure this is correct
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-

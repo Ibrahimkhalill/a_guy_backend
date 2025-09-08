@@ -9,11 +9,13 @@ class ChatRoom(models.Model):
     """
     Represents a chat room where multiple messages can belong.
     """
+    user = models.ForeignKey(
+        User, related_name="chatrooms", on_delete=models.CASCADE, blank=True, null=True)
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     name = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    fsm_state_json = models.JSONField(default=dict, blank=True, null=True)  # <-- add this field
-
+    fsm_state_json = models.JSONField(
+        default=dict, blank=True, null=True)  # <-- add this field
 
     def __str__(self):
         return self.name or f"Room {self.uuid}"
@@ -29,9 +31,11 @@ class Message(models.Model):
         ("bot", "Bot"),
     ]
 
-    room = models.ForeignKey(ChatRoom, related_name="messages", on_delete=models.CASCADE)
+    room = models.ForeignKey(
+        ChatRoom, related_name="messages", on_delete=models.CASCADE)
     sender = models.CharField(max_length=10, choices=SENDER_CHOICES)
-    user = models.ForeignKey(User, related_name="messages", on_delete=models.SET_NULL, blank=True, null=True)
+    user = models.ForeignKey(User, related_name="messages",
+                             on_delete=models.SET_NULL, blank=True, null=True)
     text = models.TextField(blank=True, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
@@ -61,9 +65,11 @@ class MessageURL(models.Model):
     """
     Links a Message to one or multiple uploaded file URLs.
     """
-    message = models.ForeignKey(Message, related_name="urls", on_delete=models.CASCADE)
+    message = models.ForeignKey(
+        Message, related_name="urls", on_delete=models.CASCADE)
     file_url = models.URLField()  # store the URL of uploaded file
-    type = models.CharField(max_length=10, choices=UploadedFile.ATTACHMENT_TYPES)
+    type = models.CharField(
+        max_length=10, choices=UploadedFile.ATTACHMENT_TYPES)
 
     def __str__(self):
         return f"{self.type} - {self.file_url}"
