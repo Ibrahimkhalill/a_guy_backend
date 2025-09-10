@@ -626,6 +626,31 @@ class DialogueFSM:
             logger.error(f"Error generating academic transition: {e}")
             return "By the way, what have you been learning lately?"
 
+    def _generate_similar_question(self, original_question: str) -> str:
+        """Use LLM to rephrase an exercise into a similar question."""
+        try:
+            similar_q_prompt = ChatPromptTemplate.from_messages([
+                ("system", f"""You are a Math AI tutor.
+                
+                Language: Respond in {self.user_language} ({'Hebrew' if self.user_language == 'he' else 'English'})
+                
+                Task:
+                - Rephrase the following math exercise into a SIMILAR but different question.
+                - Keep the same difficulty level.
+                - Do not provide the solution.
+                - Only return the new question text."""),
+                ("user", "{original_question}")
+            ])
+
+            similar_q_chain = similar_q_prompt | llm
+            response = similar_q_chain.invoke(
+                {"original_question": original_question})
+
+            return response.content.strip()
+        except Exception as e:
+            logger.error(f"Error generating similar question: {e}")
+            return original_question  # fallback to original
+
     def _generate_guiding_question(self, user_answer: str, question: str, context: str) -> str:
         """Generate a guiding question to help student think through the problem."""
         try:
@@ -1059,6 +1084,10 @@ class DialogueFSM:
             return "No question available.", None
 
         q_text = questions[self.current_question_index].replace(',', '')
+        try:
+            q_text = self._generate_similar_question(q_text)
+        except Exception as e:
+            logger.error(f"Error generating similar question: {e}")
 
         svg_filepath = None
         # Generate SVG only once per question (not for hints)
