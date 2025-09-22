@@ -1,8 +1,10 @@
 from django.urls import path
 from . import views
+from . import chat
 
 urlpatterns = [
     # ChatRooms
+    path('create',chat.message_create),
     path("rooms/", views.chatroom_list_create, name="chatroom_list_create"),
     path("rooms/<str:uuid>/", views.chatroom_detail, name="chatroom_detail"),
     path("rooms/<str:uuid>/messages/",

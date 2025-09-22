@@ -40,7 +40,7 @@ class Message(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        sender_name = self.user.username if self.user else self.sender
+        sender_name = self.user.email if self.user else self.sender
         return f"{sender_name}: {self.text[:30] if self.text else 'Attachment(s)'}"
 
 

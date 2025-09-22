@@ -16,10 +16,10 @@ import uuid
 import os
 
 
-INDEX_NAME = "mathtutor-e5-large"
+INDEX_NAME = "exercise-embeddings"
 # Import your FSM chatbot
 APP_DIR = Path(__file__).resolve().parent
-PARSED_INPUT_FILE = APP_DIR / "parsed_outputs" / "all_parsed.json"
+PARSED_INPUT_FILE = APP_DIR / "parsed_outputs" / "merged_output.json"
 SVG_OUTPUT_DIR = APP_DIR / "svg_outputs"
 SVG_OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -68,6 +68,11 @@ def get_user_room_fsm(user, room_uuid):
             fsm.current_exercise = fsm_state.get("current_exercise")
             fsm.current_hint_index = fsm_state.get("hint_index", 0)
             fsm.current_question_index = fsm_state.get("question_index", 0)
+            fsm.attempt_tracker.guidance_level = fsm_state.get("guidance_level")
+            fsm.diagnostic_question_index = fsm_state.get("diagnostic_question_index")
+            fsm.diagnostic_responses = fsm_state.get("diagnostic_responses")
+            fsm.topic_exercises_count = fsm_state.get("topic_exercises_count")
+            fsm.user_language = fsm_state.get("user_language")
             fsm.recently_asked_exercise_ids = fsm_state.get(
                 "recently_asked_exercise_ids", [])
             # Recompute hebrew_grade if missing
@@ -236,66 +241,68 @@ def message_list_create(request):
 
             room = user_message.room
 
-            try:
+            # try:
                 # Use room-specific FSM
-                fsm = get_user_room_fsm(request.user.id, str(room.uuid))
-                if fsm is None:
-                    print(
-                        f"Failed to initialize FSM for user {request.user.id} and room {room.uuid}")
-                    return Response(
-                        {"detail": "Exercises data not available. Check if parsed JSON file exists."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                # Process user input
-                response_text, svg_filepath = fsm.transition(
-                    user_message.text)
-
-                # Create bot message
-                bot_message = Message.objects.create(
-                    room=room,
-                    sender="bot",
-                    text=response_text,
-                    user=None
-                )
-
-                # If first bot message, generate and set chat title
-                if room.messages.count() > 10 and room.messages.count() < 14:  # user + bot
-                    message_history = list(room.messages.order_by(
-                        "timestamp").values_list("text", flat=True))[-5:]
-                    title = generate_chat_title(message_history, language=lang)
-
-                    room.name = title
-
-                # Save SVG file and link to bot message
-                if svg_filepath:
-                    uploaded_file, file_url = save_svg_to_file(
-                        svg_filepath)
-                    if uploaded_file and file_url:
-                        MessageURL.objects.create(
-                            message=bot_message,
-                            file_url=file_url,
-                            type="image"
-                        )
-                    else:
-                        print(
-                            f"Failed to save SVG for message in room {room.uuid}")
-
-                # Save FSM state back to room
-                room.fsm_state_json = fsm.serialize()
-                room.save()
-
-                return Response({
-                    "messages": MessageSerializer([bot_message], many=True, context={"request": request}).data,
-                }, status=status.HTTP_201_CREATED)
-
-            except Exception as e:
+            fsm = get_user_room_fsm(request.user.id, str(room.uuid))
+            if fsm is None:
                 print(
-                    f"FSM Error for user {request.user.id} and room {room.uuid}: {str(e)}")
+                    f"Failed to initialize FSM for user {request.user.id} and room {room.uuid}")
                 return Response(
-                    {"detail": f"Error processing chatbot response: {str(e)}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    {"detail": "Exercises data not available. Check if parsed JSON file exists."},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
+
+            # Process user input
+            response = fsm.transition(user_message.text)
+
+
+        
+            print("svg_filepath", response)
+            # Create bot message
+            bot_message = Message.objects.create(
+                room=room,
+                sender="bot",
+                text=response["text"],
+                user=None
+            )
+
+            # If first bot message, generate and set chat title
+            if room.messages.count() > 10 and room.messages.count() < 14:  # user + bot
+                message_history = list(room.messages.order_by(
+                    "timestamp").values_list("text", flat=True))[-5:]
+                title = generate_chat_title(message_history, language=lang)
+
+                room.name = title
+            
+            # Save SVG file and link to bot message
+            if response["svg_file_path"]:
+                uploaded_file, file_url = save_svg_to_file(
+                    response["svg_file_path"])
+                if uploaded_file and file_url:
+                    MessageURL.objects.create(
+                        message=bot_message,
+                        file_url=file_url,
+                        type="image"
+                    )
+                else:
+                    print(
+                        f"Failed to save SVG for message in room {room.uuid}")
+
+            # Save FSM state back to room
+            room.fsm_state_json = fsm.serialize()
+            room.save()
+
+            return Response({
+                "messages": MessageSerializer([bot_message], many=True, context={"request": request}).data,
+            }, status=status.HTTP_201_CREATED)
+
+            # except Exception as e:
+            #     print(
+            #         f"FSM Error for user {request.user.id} and room {room.uuid}: {str(e)}")
+            #     return Response(
+            #         {"detail": f"Error processing chatbot response: {str(e)}"},
+            #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            #     )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
