@@ -6,10 +6,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copy rest of the code
+# Copy the rest of the code
 COPY . .
 
-RUN python manage.py collectstatic --noinput
-RUN python manage.py migrate
+# ⚠️ Don't run migrate or collectstatic here
+# These will run at container runtime, so environment variables are available
 
-CMD ["uvicorn", "a_guy_main.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--lifespan", "off"]
+CMD ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && uvicorn a_guy_main.asgi:application --host 0.0.0.0 --port $PORT --lifespan off"]
