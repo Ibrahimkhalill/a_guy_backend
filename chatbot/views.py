@@ -16,10 +16,10 @@ import uuid
 import os
 
 
-INDEX_NAME = "exercise-embeddings"
+INDEX_NAME = "exercise-embedding1"
 # Import your FSM chatbot
 APP_DIR = Path(__file__).resolve().parent
-PARSED_INPUT_FILE = APP_DIR / "parsed_outputs" / "merged_output.json"
+PARSED_INPUT_FILE = APP_DIR / "parsed_outputs" / "exercises_schema_v2_2025-09-22.json"
 SVG_OUTPUT_DIR = APP_DIR / "svg_outputs"
 SVG_OUTPUT_DIR.mkdir(exist_ok=True)
 
