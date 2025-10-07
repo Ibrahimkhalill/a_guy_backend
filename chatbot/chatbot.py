@@ -29,8 +29,8 @@ load_dotenv()
 # CONFIG
 # -----------------------------
 APP_DIR = Path(__file__).resolve().parent
-PARSED_INPUT_FILE = APP_DIR / "parsed_outputs" / "exercises_schema_v2_2025-09-22.json"
-INPUT_FILE = APP_DIR / "parsed_outputs" / "exercises_schema_v2_2025-09-22.json"
+PARSED_INPUT_FILE = APP_DIR / "parsed_outputs" / "exercises_schema_v2_2025-09-22 copy.json"
+INPUT_FILE = APP_DIR / "parsed_outputs" / "exercises_schema_v2_2025-09-22 copy.json"  # Adjust path as needed
 SVG_OUTPUT_DIR = APP_DIR / "svg_outputs"
 SVG_OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -102,6 +102,7 @@ llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
 # [Prompt templates remain unchanged: rag_prompt, small_talk_prompt, personal_followup_prompt, academic_transition_prompt]
 # Prompt template for the RAG chatbot (bilingual support)
+# Prompt template for the RAG chatbot (bilingual support)
 rag_prompt = ChatPromptTemplate.from_messages([
     ("system", """You are a helpful Math AI tutor. 
     
@@ -132,6 +133,8 @@ small_talk_prompt = ChatPromptTemplate.from_messages([
     
     Language Rules:
     - Detect the user's language and respond in the same language
+    - For Hebrew responses, use Right-to-Left (RTL) formatting for conversational text.
+    - Ensure all mathematical expressions and scientific notation remain Left-to-Right (LTR), even within Hebrew sentences.
     - If Hebrew is detected, respond in Hebrew
     - If English is detected, respond in English
     - Default to English if language is unclear
@@ -156,6 +159,8 @@ personal_followup_prompt = ChatPromptTemplate.from_messages([
     Language Rules:
     - Match the user's language (Hebrew or English)
     - Keep the same language throughout the conversation
+    - For Hebrew responses, use Right-to-Left (RTL) formatting for conversational text.
+    - Ensure all mathematical expressions and scientific notation remain Left-to-Right (LTR), even within Hebrew sentences.
     
     Guidelines:
     - Acknowledge their response warmly
@@ -174,6 +179,8 @@ diagnostic_prompt = ChatPromptTemplate.from_messages([
     
     Language Rules:
     - Match the user's language (Hebrew or English)
+    - For Hebrew responses, use Right-to-Left (RTL) formatting for conversational text.
+    - Ensure all mathematical expressions and scientific notation remain Left-to-Right (LTR), even within Hebrew sentences. 
     - For Hebrew: Use proper RTL formatting for general text, keep math expressions LTR
     
     Diagnostic Guidelines:
@@ -194,6 +201,8 @@ academic_transition_prompt = ChatPromptTemplate.from_messages([
         
     Language Rules:
     - Match the user's language (Hebrew or English)
+    - For Hebrew responses, use Right-to-Left (RTL) formatting for conversational text.
+    - Ensure all mathematical expressions and scientific notation remain Left-to-Right (LTR), even within Hebrew sentences. 
     - For Hebrew: Use proper RTL formatting for general text, keep math expressions LTR
 
     Academic Transition Guidelines:
@@ -237,13 +246,22 @@ I18N = {
         "doubt_clearing_intro": "Good question! Let me address your question about {topic}:",
         "ask_more_doubts": "Do you have any other questions about {topic}?",
         "small_talk_hobbies": "What hobbies do you have?",
+        "transition_word": "So,",
+        "lesson_followup": "So, what did you cover in your last class?",
         "diagnostic_test": "Okay! Do you have a test coming up?",
         "diagnostic_last_class": "What did you cover in your last class?",
         "diagnostic_focus": "What would you like to work on today?",
         "doubt_answer_complete": "I hope that helps clarify things about {topic} for you!",
         "lesson_closing": "Great, that was an awesome lesson! I’ll send you similar exercises for practice and see you in the next session. If you have questions, feel free to message me. And if you get stuck – just remember, you’re a genius. Bye!",
         "invalid_topic": "Invalid topic. Please choose one of these:",
-        "invalid_class": "Invalid class. Please choose one of these:"  # Add this line
+        "invalid_class": "Invalid class. Please choose one of these:",  # Add this line
+        # New keys added for multilingual support
+        "pick_class": "Pick a class:",
+        "available_classes": "Available classes:",
+        "pick_topic": "Pick a topic:",
+        "available_topics": "Available topics:",
+        "switch_to_english": "Switched to English. Let's continue!",
+        "switch_to_hebrew": "Switched to Hebrew. Let's continue!"
 
     },
     "he": {
@@ -270,17 +288,25 @@ I18N = {
         "doubt_clearing_intro": "אני כאן לעזור! תן לי לענות על השאלה שלך על {topic}:",
         "ask_more_doubts": "יש לך שאלות נוספות על {topic}?",
         "small_talk_hobbies": "אילו תחביבים יש לך?",
+        "transition_word": "אז,",
+        "lesson_followup": "אז, מה סקרתם בשיעור האחרון שלך?",
         "diagnostic_test": "יש לך מבחן בקרוב?",
         "diagnostic_last_class": "מה סקרתם בשיעור האחרון שלך?",
         "diagnostic_focus": "על מה תרצה לעבוד היום?",
         "doubt_answer_complete": "אני מקווה שזה עוזר להבהיר דברים על {topic} עבורך!",
         "lesson_closing": "נהדר, זה היה שיעור מדהים! אשלח לך תרגילים דומים לתרגול וניפגש בשיעור הבא. אם יש לך שאלות, אל תהסס לפנות אליי. ואם תיתקע – זכור, אתה גאון. להתראות!",
         "invalid_topic": "נושא לא חוקי. אנא בחר אחד מהבאים:",
-        "invalid_class": "כיתה לא חוקית. אנא בחר אחת מהבאות:"  # Add this line
+        "invalid_class": "כיתה לא חוקית. אנא בחר אחת מהבאות:" , # Add this line
+        # New keys added for multilingual support
+        "pick_class": "בחר כיתה:",
+        "available_classes": "כיתות זמינות:",
+        "pick_topic": "בחר נושא:",
+        "available_topics": "נושאים זמינים:",
+        "switch_to_english": "עברתי לאנגלית. בואו נמשיך!",
+        "switch_to_hebrew": "עברתי לעברית. בואו נמשיך!"
 
     }
 }
-
 
 # -----------------------------
 # FSM STATES
@@ -318,14 +344,13 @@ def clean_math_text(text: str) -> str:
         return f'({numerator}/{denominator})'
     text = re.sub(r'\\frac\s*\{?([^} ]+)\}?\s*\{?([^} ]+)\}?', replace_fraction, text)
     # Convert \cdot to *
-    text = text.replace('\\cdot', '*')
+    text = text.replace('\\cdot', '')
     text = re.sub(r'\\([a-zA-Z]+)\{([^}]*)\}', r'\2', text)
     text = re.sub(r'\\([a-zA-Z]+)', r'', text)
-
     # Remove HTML tags (including P, DIV, SPAN, etc.)
     text = re.sub(r'<[^>]+>', '', text)
-
-    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'[ \t]+', ' ', text)  # keep newlines intact
+    # text = re.sub(r'\s+', ' ', text)
     text = text.replace('$', '')
     return text.strip()
 
@@ -336,7 +361,9 @@ def translate_text_to_english(text: str) -> str:
         translation_prompt = ChatPromptTemplate.from_messages([
             ("system", """Translate the Hebrew text to English. Make sure the meaning and sentence structure stay exactly the same.
             If the text is already in English, leave it unchanged (in title case).
-            Preserve math expressions intact."""),
+            Preserve math expressions intact. 
+            For Hebrew responses, use Right-to-Left (RTL) formatting for conversational text.
+            Ensure all mathematical expressions and scientific notation remain Left-to-Right (LTR), even within Hebrew sentences."""),
             ("user", "{input}")
         ])
         translation_chain = translation_prompt | llm
@@ -348,16 +375,43 @@ def translate_text_to_english(text: str) -> str:
         return text.title()
 
 def stringify_table(table: dict) -> str:
-    if not table or not isinstance(table, dict) or not table.get("headers"):
+    if not isinstance(table, dict):
         return ""
-    headers = ", ".join(table["headers"])
-    rows = "\n".join([", ".join(row) for row in table.get("rows_data", [])])
-    return f"Table:\nHeaders: {headers}\nRows:\n{rows}"
+    
+    # Handle both possible field names
+    headers = table.get("headers", [])
+    rows_data = table.get("rows_data", table.get("rows", []))
+    
+    if not headers or not rows_data:
+        return ""
+    
+    # Clean the data
+    clean_headers = [str(h).strip() for h in headers]
+    clean_rows = []
+    
+    for row in rows_data:
+        if isinstance(row, list):
+            clean_row = [str(cell).strip() if cell else "" for cell in row]
+        else:
+            clean_row = [str(row).strip()]
+        clean_rows.append(clean_row)
+    
+    # Create table (your original logic)
+    headers_row = " | ".join(clean_headers)
+    separator = "-+-".join(["-" * len(header) for header in clean_headers])
+    rows = "\n".join([" | ".join(row) for row in clean_rows])
+    
+    return f"\nTable:\n{headers_row}\n{separator}\n{rows}\n"
 
 def stringify_options(options: List[dict]) -> str:
+    """Convert options list to formatted string with commas"""
     if not options:
         return ""
-    return "\nOptions:\n" + "\n".join([opt.get("text", "") for opt in options if isinstance(opt, dict)])
+    
+    # Join options with comma and space
+    options_text = ", ".join(str(option).strip() for option in options if option)
+    
+    return f"Options: {options_text}"
 
 def is_likely_hebrew(text: str) -> bool:
     """Simple heuristic to check if text contains Hebrew characters."""
@@ -621,6 +675,7 @@ class DialogueFSM:
         self.state = State.START
         self.grade = None
         self.hebrew_grade = None
+        self.room_uuid = room_uuid
         self.llm = llm  # Store llm as an instance attribute
         self.exercises_data = exercises_data
         self.pinecone_index = pinecone_index
@@ -673,9 +728,39 @@ class DialogueFSM:
         else:
             self._send_inactivity_message(lang_dict["session_timeout"])
     
-    def _send_inactivity_message(self, message):
-          print(f"\nA_GUY (auto): {message}")
-          self.chat_history.append(AIMessage(content=message))
+    def _send_inactivity_message(self, message_text):
+        try:
+            # 1. Room খুঁজে বের করো
+            room = ChatRoom.objects.get(uuid=self.room_uuid)
+
+            # 2. DB তে bot message create করো
+            bot_message = Message.objects.create(
+                room=room,
+                sender="bot",
+                text=message_text,
+                user=None
+            )
+
+            # 3. Socket broadcast করো frontend এ
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"chat_{self.room_uuid}",
+                {
+                    "type": "chat.message",
+                    "message": {
+                        "id": bot_message.id,
+                        "sender": "bot",
+                        "text": bot_message.text,
+                        "timestamp": bot_message.timestamp.isoformat(),
+                    },
+                },
+            )
+
+            print(
+                f"[INACTIVITY TIMEOUT] Sent to room {room.id}: {message_text}")
+
+        except ChatRoom.DoesNotExist:
+            print(f"[ERROR] Room with uuid {self.room_uuid} not found")
 
     @staticmethod
     def _translate_grade_to_hebrew(grade_num: str) -> str:
@@ -693,29 +778,44 @@ class DialogueFSM:
         """Extract grade/class number (7/8 or Hebrew equivalent) from user input using regex."""
         import re
 
-        # Normalize input to handle "grade" or "class"
-        text = text.lower().replace("class", "grade").strip()
+        if not text:
+            return None
+            
+        text = text.strip()
         
-        # English grades: 7 or 8 (case-insensitive, whole word)
-        english_match = re.search(r'\b(7|8)\b', text, re.IGNORECASE)
+        # ✅ FIXED: Direct Hebrew grade matching (exact match)
+        hebrew_map = {"ז": "7", "ח": "8", "ט": "9", "י": "10", "יא": "11", "יב": "12"}
+        reverse_hebrew_map = {"7": "ז", "8": "ח", "9": "ט", "10": "י", "11": "יא", "12": "יב"}
+        
+        # Check for exact Hebrew character match
+        if text in hebrew_map:
+            return text  # Return Hebrew character directly
+        
+        # Check for exact numeric match  
+        if text in reverse_hebrew_map:
+            return text  # Return numeric grade directly
+            
+        # Normalize input to handle "grade" or "class" keywords
+        text_lower = text.lower().replace("class", "grade").strip()
+        
+        # English grades: 7, 8, 9, 10, 11, 12 (whole word)
+        english_match = re.search(r'\b([7-9]|1[0-2])\b', text_lower)
         if english_match:
             return english_match.group(1)
         
-        # Hebrew grades: ז (7), ח (8) - using the existing map
-        hebrew_map = {"ז": "7", "ח": "8"}  # Matches _translate_grade_to_hebrew
-        hebrew_match = re.search(r'(ז|ח)', text)
-        if hebrew_match:
-            hebrew_char = hebrew_match.group(1)
-            return hebrew_map.get(hebrew_char, None)
+        # Hebrew grades in context (e.g., "כיתה ח")
+        hebrew_context_match = re.search(r'(?:כיתה|grade|class)\s*([זחטייאיב])', text, re.IGNORECASE)
+        if hebrew_context_match:
+            hebrew_char = hebrew_context_match.group(1)
+            return hebrew_char  # Return Hebrew character
         
-        # Handle phrases like "grade 7", "class 7", "כיתה ז"
-        phrase_match = re.search(r'(?:grade|class|כיתה)\s*(\d+|ז|ח)', text, re.IGNORECASE)
-        if phrase_match:
-            value = phrase_match.group(1)
-            return hebrew_map.get(value, value) if value in hebrew_map else value if value in ["7", "8"] else None
+        # Handle numeric grades in context (e.g., "grade 8", "class 8")
+        numeric_context_match = re.search(r'(?:grade|class|כיתה)\s*([7-9]|1[0-2])', text_lower, re.IGNORECASE)
+        if numeric_context_match:
+            return numeric_context_match.group(1)
         
         return None
-    
+        
     # Add the new function here or with other helper methods
     def _get_grade_key(self, metadata: dict) -> Optional[str]:
         """
@@ -766,14 +866,22 @@ class DialogueFSM:
 
             section = sections[self.current_question_index]
             
-            # DEBUG: Print available fields in the section to see what's actually there
-            if self.current_question_index == 0:  # Only debug for first question
-                logger.debug(f"Available section fields: {list(section.keys())}")
-                if "question" in section:
-                    logger.debug(f"Question fields: {list(section['question'].keys())}")
-            
             main_data = content.get("main_data", {})
             main_text = clean_math_text(main_data.get("text", ""))
+            
+            # ✅ FIXED: Handle exercise metadata with translation
+            exercise_number = meta.get('exercise_number', 'N/A')
+            exercise_type_raw = meta.get('exercise_type', 'Unknown')
+            
+            # Translate exercise type immediately if needed
+            exercise_type = exercise_type_raw
+            if self.user_language == "en" and is_likely_hebrew(exercise_type_raw):
+                exercise_type = translate_text_to_english(exercise_type_raw)
+                logger.debug(f"Translated exercise type: '{exercise_type_raw}' -> '{exercise_type}'")
+            
+            # Translate main text if needed
+            if main_text and self.user_language == "en" and is_likely_hebrew(main_text):
+                main_text = translate_text_to_english(main_text)
             
             # Check for different possible base/guide question field names
             base_question = None
@@ -817,14 +925,27 @@ class DialogueFSM:
                 # For subsequent questions, use regular question
                 q_text = clean_math_text(regular_question or "")
                 question_type = "Question"
+                logger.debug("Using regular question for subsequent sections")
 
-            # Format question output
-            formatted_question = (
-                f"📘 Exercise {meta.get('exercise_number', 'N/A')} ({meta.get('exercise_type', 'Unknown')})\n"
-            )
+            if not q_text:
+                logger.warning("No valid question text found")
+                return self._get_localized_text("no_exercises", grade=self.grade, topic=self.topic)
+            
+            # Translate question text if needed
+            if q_text and self.user_language == "en" and is_likely_hebrew(q_text):
+                q_text = translate_text_to_english(q_text)
+
+            # Translate section number if needed
+            section_number = section.get('section_number', 'N/A')
+            if self.user_language == "en" and is_likely_hebrew(str(section_number)):
+                hebrew_to_number = {"א": "1", "ב": "2", "ג": "3", "ד": "4", "ה": "5"}
+                section_number = hebrew_to_number.get(str(section_number), section_number)
+
+            # ✅ FIXED: Format question output with already translated components
+            formatted_question = f"📘 Exercise {exercise_number} ({exercise_type})\n"
             if main_text:
                 formatted_question += f"Main Text: {main_text}\n"
-            formatted_question += f"➤ Section {section.get('section_number', 'N/A')} - {question_type}: {q_text}"
+            formatted_question += f"➤ Section {section_number} - {question_type}: {q_text}"
         
 
             # Handle question table (for base/guide questions, check their specific table field)
@@ -837,7 +958,10 @@ class DialogueFSM:
                 question_table = section.get("question", {}).get("table", {})
                 
             if question_table and isinstance(question_table, dict) and question_table.get("headers"):
-                formatted_question += "\n" + self._stringify_table(question_table)
+                table_text = self._stringify_table(question_table)
+                if self.user_language == "en" and is_likely_hebrew(table_text):
+                    table_text = translate_text_to_english(table_text)
+                formatted_question += "\n" + table_text
 
             # Handle question options (check base/guide question options)
             question_options = []
@@ -849,12 +973,18 @@ class DialogueFSM:
                 question_options = section.get("question_options", [])
                 
             if question_options:
-                formatted_question += "\n" + self._stringify_options(question_options)
+                options_text = self._stringify_options(question_options)
+                if self.user_language == "en" and is_likely_hebrew(options_text):
+                    options_text = translate_text_to_english(options_text)
+                formatted_question += "\n" + options_text
 
             # Handle main table
             main_table = main_data.get("table", {})
             if main_table and isinstance(main_table, dict) and main_table.get("headers"):
-                formatted_question += "\nMain Table:\n" + self._stringify_table(main_table)
+                main_table_text = self._stringify_table(main_table)
+                if self.user_language == "en" and is_likely_hebrew(main_table_text):
+                    main_table_text = translate_text_to_english(main_table_text)
+                formatted_question += "\nMain Table:\n" + main_table_text
 
             # Handle SVGs (prioritize section SVG, then main SVG)
             svg_content = None
@@ -881,7 +1011,7 @@ class DialogueFSM:
                 logger.debug(f"SVG content length: {len(svg_content) if svg_content else 0}")
                 self.current_svg_file_path = self._save_svg(svg_content)
                 if self.current_svg_file_path:
-                    formatted_question += f"\n[SVG: {self.current_svg_file_path}]"
+                    formatted_question 
                     logger.debug(f"SVG saved to: {self.current_svg_file_path}")
                 else:
                     logger.warning("Failed to save SVG content")
@@ -889,10 +1019,10 @@ class DialogueFSM:
             else:
                 logger.debug("No SVG content found for this question")
                 
-            # Translate to English if needed
-            if self.user_language == "en" and is_likely_hebrew(formatted_question):
-                formatted_question = translate_text_to_english(formatted_question)
-                logger.debug(f"Translated question: {formatted_question}")
+            # ✅ FIXED: Apply RTL for Hebrew responses (no additional translation needed)
+            if self.user_language == "he":
+                formatted_question = f"\u202B{formatted_question}\u202C"
+            # ✅ REMOVED: No need for final translation since we translate components individually
 
             return formatted_question.strip()
 
@@ -952,17 +1082,62 @@ class DialogueFSM:
 
     # Helper methods (to align with embedding.py and reduce code duplication)
     def _stringify_table(self, table: dict) -> str:
-        if not table or not isinstance(table, dict) or not table.get("headers"):
+        if not isinstance(table, dict):
             return ""
-        headers = ", ".join(str(h) for h in table["headers"])
-        rows = "\n".join(", ".join(str(cell) for cell in row) for row in table.get("rows_data", []))
-        return f"Table:\nHeaders: {headers}\nRows:\n{rows}"
+        
+        # Handle both possible field names
+        headers = table.get("headers", [])
+        rows_data = table.get("rows_data", table.get("rows", []))
+        
+        if not headers or not rows_data:
+            return ""
+        
+        # Clean the data
+        clean_headers = [str(h).strip() for h in headers]
+        clean_rows = []
+        
+        for row in rows_data:
+            if isinstance(row, list):
+                clean_row = [str(cell).strip() if cell else "" for cell in row]
+            else:
+                clean_row = [str(row).strip()]
+            clean_rows.append(clean_row)
+        
+        # Create table (your original logic)
+        headers_row = " | ".join(clean_headers)
+        separator = "-+-".join(["-" * len(header) for header in clean_headers])
+        rows = "\n".join([" | ".join(row) for row in clean_rows])
+        
+        return f"\nTable:\n{headers_row}\n{separator}\n{rows}\n"
 
-    def _stringify_options(self, options: List[dict]) -> str:
+    def _stringify_options(self, options):
+        """Convert options list to formatted string with numbered options"""
         if not options:
             return ""
-        return "Options:\n" + "\n".join(clean_math_text(opt.get("text", "")) for opt in options if isinstance(opt, dict))
-    
+        
+        formatted_options = []
+        
+        for i, option in enumerate(options, 1):  # Start numbering from 1
+            if isinstance(option, dict):
+                # Extract text from dictionary structure
+                option_text = option.get("Text", option.get("text", ""))
+                if option_text:
+                    # Clean up the text (remove extra spaces, LaTeX issues)
+                    clean_text = clean_math_text(str(option_text))
+                    formatted_options.append(f"{i}) {clean_text}")
+            elif isinstance(option, str):
+                # Handle simple string options
+                clean_text = clean_math_text(option)
+                formatted_options.append(f"{i}) {clean_text}")
+            else:
+                # Fallback for other types
+                formatted_options.append(f"{i}) {str(option).strip()}")
+        
+        if formatted_options:
+           return f"\nOptions:\n\n" + "\n".join(formatted_options)
+        else:
+            return ""
+        
     def _generate_lesson_summary(self) -> str:
         closing_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a friendly math tutor closing a short session.
@@ -979,37 +1154,71 @@ class DialogueFSM:
             logger.error(f"Error generating lesson summary: {e}")
             return "Great job today! You tackled some tough problems with confidence."
 
-    def _pick_new_exercise(self, grade: str, topic: str):
+    def _pick_new_exercise(self, grade: str, topic: Optional[str] = None):
         exercises = get_exercises(grade, topic) if topic else [
             ex for ex in all_exercises if ex["exercise_metadata"]["class"] == grade
         ]
+        
         if not exercises:
             # No dataset exercises → generate new one
+            logger.debug(f"No exercises found for grade {grade}, topic {topic}. Generating new exercise.")
             self.current_exercise = self.attempt_tracker.generate_exercise_with_llm(topic or "geometry", grade)
             if not self.current_exercise:
                 return None
+            # Save SVG for generated exercise
             self.current_svg_file_path = self._save_svg(self.current_exercise.get("svg"))
             self.svg_generated_for_question = True
         else:
-            # Only pick exercises not used before
+            # Filter available exercises (not recently used)
             available = [ex for ex in exercises if ex["exercise_metadata"]["exercise_number"]
                         not in self.recently_asked_exercise_ids]
             
             if not available:
-                # 🚫 Do NOT reset to all exercises → this prevents repetition
-                return None   # signal that all exercises are exhausted
+                logger.debug("No available exercises (all recently used)")
+                return None
 
-            self.current_exercise = random.choice(available)
+            # ✅ FIXED: Prioritize exercises by type with deterministic selection
+            exercise_type_priority = ["base", "guide", "calculation"]
+            selected_exercise = None
+            
+            for exercise_type in exercise_type_priority:
+                matching_exercises = [
+                    ex for ex in available 
+                    if ex["exercise_metadata"].get("exercise_type", "").lower() == exercise_type
+                ]
+                if matching_exercises:
+                    # ✅ FIXED: Sort by exercise number for consistent selection
+                    matching_exercises.sort(key=lambda x: x["exercise_metadata"]["exercise_number"])
+                    selected_exercise = matching_exercises[0]  # Always pick first (most consistent)
+                    logger.debug(f"✅ Selected {exercise_type} exercise: {selected_exercise['exercise_metadata']['exercise_number']}")
+                    break
+            
+            # Fallback to any available exercise if no priority types found
+            if not selected_exercise:
+                available.sort(key=lambda x: x["exercise_metadata"]["exercise_number"])
+                selected_exercise = available[0]
+                logger.debug(f"No priority exercises available, selected: {selected_exercise['exercise_metadata']['exercise_number']}")
+            
+            self.current_exercise = selected_exercise
 
-            # Save SVG if it exists
+            # ✅ ADDITIONAL FIX: Check if exercise has base_question in sections
+            if self.current_exercise:
+                sections = self.current_exercise.get("exercise_content", {}).get("sections", [])
+                if sections:
+                    first_section = sections[0]
+                    has_base_question = "base_question" in first_section
+                    logger.debug(f"Exercise {self.current_exercise['exercise_metadata']['exercise_number']} has base_question: {has_base_question}")
+                    
+                    if has_base_question:
+                        logger.debug("✅ Starting with BASE QUESTION")
+                    else:
+                        logger.debug("⚠️ No base_question found, will use regular question")
+
+            # Handle geometric exercises requiring SVG
+            question_text = self.current_exercise["exercise_content"]["sections"][self.current_question_index].get("question", {}).get("text", "")
             main_svg = self.current_exercise.get("exercise_content", {}).get("main_data", {}).get("svg")
-            if main_svg:
-                self.current_svg_file_path = self._save_svg(main_svg)
-                self.svg_generated_for_question = True
-
-            # If geometric exercise requires SVG but missing, generate new one
-            question_text = self.current_exercise["exercise_content"]["sections"][0].get("question", {}).get("text", "")
             if ("parallel" in question_text.lower() or "axes" in question_text.lower() or "segment" in question_text.lower()) and not main_svg:
+                logger.debug("Geometric exercise missing SVG, generating new one")
                 self.current_exercise = self.attempt_tracker.generate_exercise_with_llm(topic or "geometry", grade)
                 if self.current_exercise:
                     self.current_svg_file_path = self._save_svg(self.current_exercise.get("svg"))
@@ -1069,9 +1278,11 @@ class DialogueFSM:
                 # At least 2 exercises completed, move to ASK_FOR_DOUBTS
                 self.state = State.ASK_FOR_DOUBTS
                 topic_name = self.topic or "this topic"
-                return f"\n{self._get_localized_text('ask_for_doubts', topic=topic_name)}"
+                if self.user_language == "en" and is_likely_hebrew(topic_name):
+                    topic_name = translate_text_to_english(topic_name)
+                return f"\n\n{self._get_localized_text('ask_for_doubts', topic=topic_name)}"
             
-    def _generate_doubt_clearing_response(self, user_question: str) -> str:
+    def _generate_doubt_clearing_response(self, user_question: str, is_new_question: bool = False) -> str:
         """Generate response to clear student's doubts using RAG."""
         try:
             # Translate the question if needed
@@ -1106,7 +1317,7 @@ class DialogueFSM:
                 - End with confirmation question
                 """),
                 MessagesPlaceholder(variable_name="chat_history"),
-                ("user", "Student's Question: {question}\n\nRelevant Context: {context}")
+                ("user", "Student's Question: {question}\n\nRelevant Context: {context}"),
             ])
             
             doubt_clearing_chain = doubt_clearing_prompt | llm
@@ -1117,12 +1328,18 @@ class DialogueFSM:
             })
             
             topic_name = self.topic or "this topic"
+            if self.user_language == "en" and is_likely_hebrew(topic_name):
+                topic_name = translate_text_to_english(topic_name)
             intro = self._get_localized_text("doubt_clearing_intro", topic=topic_name)
+            #complete = self._get_localized_text("doubt_answer_complete", topic=topic_name)
             return f"{intro}\n\n{clean_math_text(response.content.strip())}"
+            
+            #return f"{intro}\n\n{response.content.strip()}\n\n{complete}"
             
         except Exception as e:
             logger.error(f"Error generating doubt clearing response: {e}")
             return "I'd be happy to help with your question, but I'm having trouble processing it right now. Could you try asking it in a different way?"
+
 
     def _handle_hint_request(self, user_input: str) -> str:
         """Always provide progressive guidance when hint is requested."""
@@ -1191,22 +1408,27 @@ class DialogueFSM:
             try:
                 explanation_prompt = ChatPromptTemplate.from_messages([
                     ("system", f"""You are a Math AI tutor providing a detailed solution explanation.
-                    
-                    Language: Respond in {self.user_language} ({'Hebrew' if self.user_language == 'he' else 'English'})
-                    
-                    Guidelines:
-                    - Always explain in steps: Step 1, Step 2, Step 3...
-                    - First: state the key formula or rule used.
-                    - Second: substitute values from the problem.
-                    - Third: simplify step by step.
-                    - Fourth: conclude with the final answer.
-                    - End with a short "check your answer" verification if possible.
-                    - Be clear, concise, and educational.
-                    - Never show raw $ signs or LaTeX markup.
-                    """),
+
+                Language: Respond in {self.user_language} ({'Hebrew' if self.user_language == 'he' else 'English'})
+
+                Guidelines:
+                - Always provide your answer in **Markdown format** with headings, numbered lists, bullet points, and bold text where appropriate.
+                - For Hebrew responses, use Right-to-Left (RTL) formatting for conversational text.
+                - Keep all mathematical expressions and scientific notation Left-to-Right (LTR), even within Hebrew sentences.
+                - Explain the solution in clear steps: Step 1, Step 2, Step 3...
+                - Step structure:
+                    1. State the key formula or rule used.
+                    2. Substitute values from the problem.
+                    3. Simplify step by step.
+                    4. Conclude with the final answer.
+                - End with a short "check your answer" verification if possible.
+                - Never show raw $ signs or LaTeX markup.
+                - Be clear, concise, and educational, but output **Markdown-ready content** that can be rendered directly in ReactMarkdown.
+                """),
                     MessagesPlaceholder(variable_name="chat_history"),
                     ("user", "Question: {question}\nSolution: {solution}\n\nProvide a step-by-step explanation:")
                 ])
+
                 
                 explanation_chain = explanation_prompt | llm
                 current_question = self._get_current_question()
@@ -1228,7 +1450,7 @@ class DialogueFSM:
                 if self.current_exercise and self.current_exercise.get("svg"):
                     svg_reference = self._generate_and_save_svg(for_solution_explanation=True)
                 
-                result = f"{solution_prefix}{solution}\n\n{explanation}"
+                result = f"{solution_prefix}\n\n{explanation}"
     
                 if svg_reference:
                     result += f"\n{svg_reference}"
@@ -1238,7 +1460,7 @@ class DialogueFSM:
                 
             except Exception as e:
                 logger.error(f"Error generating solution explanation: {e}")
-                result = f"{solution_prefix}{solution}"
+                result = f"{solution_prefix}"
                 result += self._move_to_next_exercise_or_question()
                 return result
             
@@ -1270,6 +1492,8 @@ class DialogueFSM:
                 Language: Respond in {self.user_language} ({'Hebrew' if self.user_language == 'he' else 'English'})
                 
                 Guidelines:
+                - For Hebrew responses, use Right-to-Left (RTL) formatting for conversational text.
+                - Ensure all mathematical expressions and scientific notation remain Left-to-Right (LTR), even within Hebrew sentences.
                 - Provide a single, concise hint (1-2 sentences) to guide the student toward the solution
                 - Do NOT reveal the full solution
                 - Focus on a key concept, formula, or step needed to solve the problem
@@ -1300,17 +1524,20 @@ class DialogueFSM:
             Language: Respond in {self.user_language} ({'Hebrew' if self.user_language == 'he' else 'English'})
             
             Evaluation Guidelines:
-            1. Determine if the answer is CORRECT or INCORRECT
-            2. If INCORRECT, identify the specific mistake or misconception
-            3. Provide encouragement regardless of correctness
-            4. DO NOT reveal the correct answer
-            5. Be supportive and educational
+            - For Hebrew responses, use Right-to-Left (RTL) formatting for conversational text.
+            - Ensure all mathematical expressions and scientific notation remain Left-to-Right (LTR), even within Hebrew sentences.
+            - Determine if the answer is CORRECT or INCORRECT
+            - If INCORRECT, identify the specific mistake or misconception
+            - Provide encouragement regardless of correctness
+            - DO NOT reveal the correct answer
+            - Do NOT use prefixe like "SORRY:" - just give natural feedback
+            - Be supportive and educational
             
             Response Format:
             CORRECT: [brief encouraging comment]
-            OR
-            SORRY: [brief explanation of what went wrong without giving the answer]
+            For incorrect answers: [brief explanation of what went wrong without giving the answer]
             """),
+
             MessagesPlaceholder(variable_name="chat_history"),
             ("user", "Question: {question}\nStudent Answer: {answer}\nContext: {context}\n\nEvaluate the answer:"),
         ])
@@ -1420,6 +1647,8 @@ class DialogueFSM:
                 Language: Respond in {self.user_language} ({'Hebrew' if self.user_language == 'he' else 'English'})
                 
                 Guidelines:
+                - For Hebrew responses, use Right-to-Left (RTL) formatting for conversational text.
+                - Ensure all mathematical expressions and scientific notation remain Left-to-Right (LTR), even within Hebrew sentences.
                 - Ask a question that guides them toward the solution
                 - Don't give away the answer directly
                 - Focus on the mathematical concept or method
@@ -1457,19 +1686,40 @@ class DialogueFSM:
             
         text_lower = (user_input or "").strip().lower()
 
-        # Detect user language from input
-        if user_input and user_input.strip():
+        # FIXED: Language persistence - only set initially or on explicit switch
+        if not hasattr(self, '_initial_language_set'):
+            self._initial_language_set = False
+        
+        if not self._initial_language_set and user_input.strip():
             detected_lang = detect_language(user_input)
             if detected_lang in ["he", "en"]:
                 self.user_language = detected_lang
             else:
                 self.user_language = "en"
-                
+            self._initial_language_set = True
+            logger.debug(f"Initial language set to: {self.user_language}")
+        
+        # Explicit language switch
+        if text_lower in ["switch to english", "english", "עבור לאנגלית"]:
+            self.user_language = "en"
+            response_add = self._get_localized_text("switch_to_english")
+            logger.debug("Language switched to English")
+        elif text_lower in ["switch to hebrew", "hebrew", "עבור לעברית"]:
+            self.user_language = "he"
+            response_add = self._get_localized_text("switch_to_hebrew")
+            logger.debug("Language switched to Hebrew")
+        else:
+            response_add = ""
+            
         # Add user input to chat history
         if user_input:
             self.chat_history.append(HumanMessage(content=clean_math_text(user_input)))
 
         response_dict = {"text": "", "svg_file_path": None}  # Initialize response dictionary
+
+        # If language switched, prepend to response (for any state)
+        if 'response_add' in locals() and response_add:
+            response_dict["text"] += f"{response_add}\n\n"
 
         # --- State Transitions ---
         if self.state == State.START:
@@ -1477,7 +1727,25 @@ class DialogueFSM:
             self.small_talk_question_index = 0
             self.small_talk_responses = []
             self.small_talk_turns = 1
-            simple_greetings = ["Hey! How are you?", "Hi there!", "What's up?", "How's it going?"]
+             # ✅ Detect the user's language from their very first input
+            detected_lang = detect_language(user_input or "")
+            self.user_language = detected_lang if detected_lang in ["he", "en"] else "en"
+
+            # ✅ Choose greeting based on detected language
+            if self.user_language == "he":
+                simple_greetings = [
+                    "שלום! מה שלומך?",
+                    "היי! איך אתה מרגיש היום?",
+                    "שלום! איך עובר עליך היום?",
+                    "נעים לראות אותך! מה שלומך?"
+                ]
+            else:
+                simple_greetings = [
+                    "Hey! How are you?",
+                    "Hi there!",
+                    "What's up?",
+                    "How's it going?"
+                ]
             response_dict["text"] = random.choice(simple_greetings)
             self.chat_history.append(AIMessage(content=response_dict["text"]))
 
@@ -1511,7 +1779,31 @@ class DialogueFSM:
             self.state = State.DIAGNOSTIC
             self.diagnostic_question_index = 0
             self.diagnostic_responses = []
-            response_dict["text"] = self._get_diagnostic_question()
+            
+            # Generate dynamic first diagnostic question
+            try:
+                first_diag_prompt = ChatPromptTemplate.from_messages([
+                    ("system", f"""You are a friendly math tutor.
+                    Language: Respond in {self.user_language} ({'Hebrew' if self.user_language == 'he' else 'English'})
+                    Guidelines:
+                    - Acknowledge their hobby/personal response briefly (3-5 words)
+                    - Then ask if they have any tests or exams coming up
+                    - Keep it natural and conversational (1 sentence total)
+                    - Example: "Cool! Do you have any tests coming up?"
+                    """),
+                    MessagesPlaceholder(variable_name="chat_history"),
+                    ("user", "{input}")
+                ])
+                first_diag_chain = first_diag_prompt | self.llm
+                response_obj = first_diag_chain.invoke({
+                    "chat_history": self.chat_history[-3:],
+                    "input": user_input
+                })
+                response_dict["text"] = clean_math_text(response_obj.content.strip())
+            except Exception as e:
+                logger.error(f"Error generating first diagnostic: {e}")
+                response_dict["text"] = self._get_diagnostic_question()  # Fallback to static
+            
             self.chat_history.append(AIMessage(content=response_dict["text"]))
 
         elif self.state == State.DIAGNOSTIC:
@@ -1524,6 +1816,8 @@ class DialogueFSM:
                         ("system", f"""You are a friendly math tutor.
                         Language: Respond in {self.user_language} ({'Hebrew' if self.user_language == 'he' else 'English'})
                         Guidelines:
+                        - For Hebrew responses, use Right-to-Left (RTL) formatting for conversational text.
+                        - Ensure all mathematical expressions and scientific notation remain Left-to-Right (LTR), even within Hebrew sentences.
                         - Acknowledge the user's previous response in ONE short sentence (5-10 words).
                         - Be warm, conversational, and encouraging.
                         - Examples: 'Wow, great to hear!', 'That's awesome!', 'Cool, love that!'
@@ -1540,7 +1834,9 @@ class DialogueFSM:
                 except Exception as e:
                     logger.error(f"Error generating contextual acknowledgment: {e}")
                     acknowledgment = "That's awesome!"
-                response_dict["text"] = f"{acknowledgment} So, {next_question}"
+            
+                transition_word = self._get_localized_text("transition_word")
+                response_dict["text"] = f"{acknowledgment} {transition_word} {next_question}"
                 self.chat_history.append(AIMessage(content=response_dict["text"]))
             else:
                 self.state = State.ACADEMIC_TRANSITION
@@ -1555,52 +1851,76 @@ class DialogueFSM:
 
         elif self.state == State.PICK_CLASS:
             chosen_class = user_input.strip()
-            classes_hebrew = get_classes()
-            if self.user_language == "en":
-                classes_display = [translate_text_to_english(c) for c in classes_hebrew]
-            else:
-                classes_display = classes_hebrew
-            if chosen_class not in classes_display:
-                response_dict["text"] = f"{self._get_localized_text('invalid_class')} {classes_display}"
-            else:
-                if self.user_language == "en":
-                    idx = classes_display.index(chosen_class)
-                    self.grade = classes_display[idx]
-                    self.hebrew_grade = classes_hebrew[idx]
+            classes_hebrew = get_classes()  # e.g., ['ח', 'ז']
+            
+            # ✅ FIXED: Use the existing _extract_grade_from_input method
+            extracted_grade = self._extract_grade_from_input(chosen_class)
+            
+            if extracted_grade:
+                # Convert extracted grade to Hebrew equivalent for internal storage
+                hebrew_grade_map = {"7": "ז", "8": "ח", "9": "ט", "10": "י", "11": "יא", "12": "יב"}
+                
+                if extracted_grade in classes_hebrew:
+                    # Direct Hebrew input (e.g., "ח")
+                    self.hebrew_grade = extracted_grade
+                    self.grade = grade_map.get(self.hebrew_grade, self.hebrew_grade)
+                elif extracted_grade in ["7", "8", "9", "10", "11", "12"]:
+                    # English numeric input (e.g., "8")
+                    self.hebrew_grade = hebrew_grade_map.get(extracted_grade, extracted_grade)
+                    self.grade = extracted_grade if self.user_language == "en" else self.hebrew_grade
                 else:
-                    self.grade = chosen_class if not is_likely_hebrew(chosen_class) else self._translate_grade_to_hebrew(chosen_class)
-                    self.hebrew_grade = self._translate_grade_to_hebrew(self.grade) if not is_likely_hebrew(chosen_class) else chosen_class
+                    extracted_grade = None  # Invalid input
+            
+            if not extracted_grade or self.hebrew_grade not in classes_hebrew:
+                # ✅ FIXED: Show classes in user's preferred language
+                if self.user_language == "en":
+                    classes_display = [grade_map.get(c, c) for c in classes_hebrew]  # ['8', '7']
+                else:
+                    classes_display = classes_hebrew  # ['ח', 'ז']
+                
+                avail_text = self._get_localized_text("available_classes")
+                pick_text = self._get_localized_text("pick_class")
+                response_dict["text"] = f"{self._get_localized_text('invalid_class')} {classes_display}\n{avail_text} {classes_display}\n{pick_text}"
+            else:
+                # ✅ SUCCESS: Valid class selected
                 self.state = State.PICK_TOPIC
                 topics_hebrew = get_topics(self.hebrew_grade)
-                topics_display = [translate_text_to_english(t) for t in topics_hebrew] if self.user_language == "en" else topics_hebrew[:]
-                response_dict["text"] = f"{'Available topics' if self.user_language=='en' else 'נושאים זמינים'}: {topics_display}\n{'Pick a topic:' if self.user_language=='en' else 'בחר נושא:'}"
+                
+                # Display topics in user's language
+                if self.user_language == "en":
+                    topics_display = [translate_text_to_english(t) for t in topics_hebrew]
+                else:
+                    topics_display = topics_hebrew
+                
+                avail_text = self._get_localized_text("available_topics")
+                pick_text = self._get_localized_text("pick_topic")
+                response_dict["text"] = f"{avail_text}: {topics_display}\n{pick_text}"
+            
             self.chat_history.append(AIMessage(content=response_dict["text"]))
 
         elif self.state == State.PICK_TOPIC:
             chosen_topic = user_input.strip()
-            topics_hebrew = get_topics(self.hebrew_grade)
-            if user_input and detect_language(user_input) == "en":
-                self.user_language = "en"
-
-            topics_display = [translate_text_to_english(t) for t in topics_hebrew] if self.user_language == "en" else topics_hebrew
-
-            # Case-insensitive lookup
+            topics_hebrew = get_topics(self.hebrew_grade)  # Always Hebrew originals
+            
+            # Display topics in user's language (for validation/error)
+            if self.user_language == "en":
+                topics_display = [translate_text_to_english(t) for t in topics_hebrew]
+            else:
+                topics_display = topics_hebrew
+            
+            # Case-insensitive lookup on display versions
             match = None
             for i, t in enumerate(topics_display):
                 if t.lower() == chosen_topic.lower():
-                    match = (i, t)
+                    match = (i, topics_hebrew[i])  # Store original Hebrew topic
                     break
 
             if not match:
-                response_dict["text"] = f"{self._get_localized_text('invalid_topic')} {topics_display[:]}"
+                avail_text = self._get_localized_text("available_topics")
+                pick_text = self._get_localized_text("pick_topic")
+                response_dict["text"] = f"{self._get_localized_text('invalid_topic')} {topics_display}\n{avail_text}: {topics_display}\n{pick_text}"
             else:
-                idx, matched_topic = match
-                if self.user_language == "en":
-                    # Always take the exact JSON topic (Hebrew or English from the file)
-                    self.topic = topics_hebrew[idx]
-                else:
-                    self.topic = matched_topic
-
+                idx, self.topic = match  # self.topic = original Hebrew
                 self.topic_exercises_count = 0
                 self.doubt_questions_count = 0
                 self._pick_new_exercise(self.hebrew_grade, self.topic)
@@ -1616,6 +1936,17 @@ class DialogueFSM:
             self.chat_history.append(AIMessage(content=response_dict["text"]))
 
         elif self.state in [State.QUESTION_ANSWER, State.GUIDING_QUESTION, State.PROVIDING_HINT]:
+             # ✅ FIX: Route conceptual/doubt-style questions directly to doubt clearing
+            if any(text_lower.startswith(prefix) for prefix in [
+                "what is", "who is", "how to", "explain", "define", "tell me", "why is", "how does", "can you explain"
+            ]):
+                self.state = State.DOUBT_CLEARING
+                self.doubt_questions_count = 1
+                topic_name = self.topic or "this topic"
+                doubt_response = self._generate_doubt_clearing_response(user_input)
+                response_dict["text"] = f"{doubt_response}\n\n{self._get_localized_text('ask_more_doubts', topic=topic_name)}"
+                self.chat_history.append(AIMessage(content=response_dict["text"]))
+                return response_dict
             irrelevant_keywords = ["recipe", "cake", "story", "joke", "weather", "song", "news", "football", "music", "movie", "politics", "food", "travel", "holiday"]
             if any(word in text_lower for word in irrelevant_keywords):
                 response_dict["text"] = self._get_localized_text("irrelevant_msg") + "\n\nLet's focus on the current exercise."
@@ -1701,6 +2032,9 @@ class DialogueFSM:
             no_doubt_indicators = ["no", "nope", "nothing", "i'm good", "all clear", "no more", "that's all", "thanks", "לא", "אין", "תודה", "זה הכל"]
             doubt_indicators = ["yes", "yeah", "yep", "i have", "question", "doubt", "confused", "don't understand", "כן", "יש לי", "שאלה"]
             topic_name = self.topic or "this topic"
+            # ✅ Auto-translate Hebrew topic names when responding in English
+            if self.user_language == "en" and is_likely_hebrew(topic_name):
+                topic_name = translate_text_to_english(topic_name)
             if any(indicator in text_lower for indicator in no_doubt_indicators) or self.doubt_questions_count >= self.MAX_DOUBT_QUESTIONS:
                 summary = self._generate_lesson_summary()
                 closing_message = self._get_localized_text("lesson_closing")
@@ -1727,6 +2061,7 @@ class DialogueFSM:
             self.chat_history.append(AIMessage(content=response_dict["text"]))
 
         return response_dict
+
 
     def serialize(self):
         return {
