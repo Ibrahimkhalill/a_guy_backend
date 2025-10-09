@@ -22,7 +22,7 @@ This Django project implements a **chat application** with a **Finite State Mach
 
 ```bash
 git clone https://github.com/Ibrahimkhalill/a_guy_backend.git
-cd django-fsm-chat
+cd a_guy_backend
 ```
 
 2. Create and activate a virtual environment:
