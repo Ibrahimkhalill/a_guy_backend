@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from .models import CustomUser, OTP, UserProfile
 from django.contrib.auth import get_user_model, authenticate
-from payment.models import Subscription
 
 User = get_user_model()
 
@@ -9,20 +8,13 @@ User = get_user_model()
 class CustomUserSerializer(serializers.ModelSerializer):
     user_profile = serializers.SerializerMethodField()
     email_address = serializers.EmailField(source='email', read_only=True)
-    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
         fields = ['id', 'email_address', 'role',
-                  'is_verified', 'user_profile', 'is_subscribed']
+                  'is_verified', 'user_profile']
         read_only_fields = ['id', 'is_active', 'is_staff', 'is_superuser']
 
-    def get_is_subscribed(self, obj):
-        try:
-            subscription = Subscription.objects.get(user=obj)
-            return subscription.is_active
-        except Subscription.DoesNotExist:
-            return False
 
     def get_user_profile(self, obj):
         try:
