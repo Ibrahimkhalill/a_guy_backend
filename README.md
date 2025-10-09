@@ -21,7 +21,7 @@ This Django project implements a **chat application** with a **Finite State Mach
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your-repo/django-fsm-chat.git
+git clone https://github.com/Ibrahimkhalill/a_guy_backend.git
 cd django-fsm-chat
 ```
 
