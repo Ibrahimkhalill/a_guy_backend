@@ -170,50 +170,6 @@ def chatroom_detail_uuid(request, uuid):
         return Response(serializer.data)
 
 
-# ------------------ Message Views ------------------
-
-# @api_view(["GET", "POST"])
-# @permission_classes([IsAuthenticated])
-# def message_list_create(request):
-#     if request.method == "GET":
-#         messages = Message.objects.all().order_by("timestamp")
-#         serializer = MessageSerializer(messages, many=True, context={"request": request})
-#         return Response(serializer.data)
-
-#     elif request.method == "POST":
-#         urls_data = request.data.pop("urls", [])
-#         serializer = MessageSerializer(data=request.data, context={"request": request})
-
-#         if serializer.is_valid():
-#             # Save user message
-#             user_message = serializer.save(user=request.user)
-
-#             # Save attached URLs
-#             for u in urls_data:
-#                 MessageURL.objects.create(
-#                     message=user_message,
-#                     file_url=u.get("file_url"),
-#                     type=u.get("type", "file")
-#                 )
-
-#             # Create bot reply
-#             bot_message = Message.objects.create(
-#                 room=user_message.room,
-#                 sender="AI Bot",
-#                 text=f"I am your assistant",
-#                 user=None
-#             )
-
-#             # If you want to include URLs for bot message, you can do it here too
-#             # MessageURL.objects.create(message=bot_message, file_url="...", type="...")
-
-#             # Return **both messages** in response
-#             data = MessageSerializer([user_message, bot_message], many=True, context={"request": request}).data
-#             return Response(data, status=status.HTTP_201_CREATED)
-
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def message_list_create(request):
@@ -296,13 +252,6 @@ def message_list_create(request):
                 "messages": MessageSerializer([bot_message], many=True, context={"request": request}).data,
             }, status=status.HTTP_201_CREATED)
 
-            # except Exception as e:
-            #     print(
-            #         f"FSM Error for user {request.user.id} and room {room.uuid}: {str(e)}")
-            #     return Response(
-            #         {"detail": f"Error processing chatbot response: {str(e)}"},
-            #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            #     )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
